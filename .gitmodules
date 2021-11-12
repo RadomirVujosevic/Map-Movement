@@ -22,3 +22,6 @@
     path = Glitter/Vendor/bullet
     url = https://github.com/bulletphysics/bullet3.git
     branch = master
+[submodule "assimp"]
+	path = assimp
+	url = ./Glitter/Vendor/assimp
