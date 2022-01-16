@@ -1,11 +1,25 @@
-# project_base
-Prazan projekat sa pratećim bibliotekama koje koristimo na času. 
 
-# Uputstvo
-1. `git clone https://github.com/matf-racunarska-grafika/project_base.git`
-2. CLion -> Open -> path/to/my/project_base
-3. Main se nalazi u src/main.cpp
-4. Cpp fajlovi idu u src folder
-5. Zaglavlja (h i hpp) fajlovi idu u include
-6. Šejderi idu u folder shaders. `Vertex shader` ima ekstenziju `.vs`, `fragment shader` ima ekstenziju `.fs`
-7. ALT+SHIFT+F10 -> project_base -> run
+# Uputstvo za pokretanje iz terminala
+1. git clone https://github.com/RadomirVujosevic/Map-Movement.git
+2. cd Map-Movement/
+3. cmake .
+4. make
+5. ./project_base
+
+# Opis
+
+Projekat predstavlja kretanje figure na karti. Pritiskom na strelicu gore ce se figura pomeriti.
+
+Model igraca ima direkciono svetlo i svetlo iz tacke koja se krece u krug oko njega.
+Mapa ima isto direkciono svetlo i spotlight koji predstavlja vidokrug igraca. 
+
+Implementiran Cubemap iz grupe A
+
+# Credits
+
+Viking model prezuet sa sajta free3d.com
+https://free3d.com/3d-model/monitor-viking-v1--698176.html
+
+Tekstura napravljena u Blender-u, a spekularna mapa u GIMP-u
+
+Marker modele sam pravio u Blender-u
