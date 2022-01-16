@@ -12,7 +12,7 @@ class Marker {
     glm::vec3 position;
     std::vector<Marker> neighbours;
 
-    Marker(int index, glm::vec3 pos = glm::vec3(0.0f, 0.1f, 0.0f)) {
+    Marker(int index, glm::vec3 pos = glm::vec3(0.0f, 0.0f, 0.0f)) {
         idx = index;
         position = pos;
     }

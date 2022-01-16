@@ -14,7 +14,7 @@ class Player {
     Marker *targetMarker = nullptr;
     Marker playerMarker;
     const float markerScaleRatio = 30.0f;
-    const float yoffset = 0.1f;
+    const float yoffset = 0.09f;
     Model markerModel{"resources/objects/marker/marker.obj"};
     Model playerModel{"resources/objects/viking/viking.obj"};
     glm::vec3 scale;
@@ -39,7 +39,7 @@ class Player {
 
         model = glm::mat4(1.0f);
 
-        translate = glm::vec3{position.x, 0.0f, position.z};
+        translate = glm::vec3{position.x, 0.1f, position.z};
         model = glm::translate(model, translate);
 
         glm::vec3 markerScale = scale;

@@ -45,7 +45,8 @@ bool firstMouse = true;
 
 // rotate,translate and scale a model
 glm::mat4 RTS(glm::vec3 translate = glm::vec3(0.0f, 0.0f, 0.0f),
-              glm::vec3 scale = glm::vec3(1.0f, 1.0f, 1.0f));
+              glm::vec3 scale = glm::vec3(1.0f, 1.0f, 1.0f),
+              float angle = 0.0f);
 
 void drawObject(Model &objectModel, glm::mat4 model, Shader &shader);
 void drawPlane(Shader &planeShader, glm::vec3 lightPosition, Model &planeModel);
@@ -92,7 +93,7 @@ int main() {
     // -----------------------------
 
     glEnable(GL_DEPTH_TEST);
-    //glEnable(GL_CULL_FACE);
+
     glEnable(GL_BLEND);
 
     
@@ -196,6 +197,7 @@ int main() {
     }
     markerFile.close();
 
+
     Player player(markers[0], glm::vec3(0.02f));
 
     // Rendering Loop
@@ -218,7 +220,7 @@ int main() {
         setModelShader(modelShader, lightPos);
 
         for (auto &it : markers) {
-            drawObject(markerModel, RTS(it.position, glm::vec3(0.2f)),
+            drawObject(markerModel, RTS(it.position, glm::vec3(0.2f), 3.1415),
                        modelShader);
         }
         player.draw(modelShader);
@@ -244,10 +246,11 @@ void drawObject(Model &objectModel, glm::mat4 model, Shader &shader) {
     objectModel.Draw(shader);
 }
 
-glm::mat4 RTS(glm::vec3 translate, glm::vec3 scale) {
+glm::mat4 RTS(glm::vec3 translate, glm::vec3 scale, float angle) {
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::translate(model, translate);
     model = glm::scale(model, scale);
+    model = glm::rotate(model, angle, glm::vec3(1.0f, 0.0f, 1.0f));
     return model;
 }
 

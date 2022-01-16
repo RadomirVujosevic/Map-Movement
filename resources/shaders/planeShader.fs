@@ -35,51 +35,29 @@ uniform DirLight dirLight;
 uniform SpotLight spotLight;
 
 uniform vec3 lightPos;
-uniform float far_plane;
-uniform bool shadows;
 
 // function prototypes
-vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir, float shadow);
-vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir, float shadow);
-
-float ShadowCalculation(vec3 fragPos)
-{
-    // get vector between fragment position and light position
-    vec3 fragToLight = fragPos - lightPos;
-    // ise the fragment to light vector to sample from the depth map    
-    float closestDepth = texture(depthMap, fragToLight).r;
-    // it is currently in linear range between [0,1], let's re-transform it back to original depth value
-    closestDepth *= far_plane;
-    // now get current linear depth as the length between the fragment and light position
-    float currentDepth = length(fragToLight);
-    // test for shadows
-    float bias = 0.05; // we use a much larger bias since depth is now in [near_plane, far_plane] range
-    float shadow = currentDepth -  bias > closestDepth ? 1.0 : 0.0;        
-    // display closestDepth as debug (to visualize depth cubemap)
-    // FragColor = vec4(vec3(closestDepth / far_plane), 1.0);    
-        
-    return shadow;
-}
+vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir);
+vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir);
 
 void main()
 {    
-    float shadow = shadows ? ShadowCalculation(FragPos) : 0.0;
     // properties
     vec3 norm = normalize(Normal);
     vec3 viewDir = normalize(viewPos - FragPos);
     
     //directional lighting
-    vec3 result = CalcDirLight(dirLight, norm, viewDir, shadow);
+    vec3 result = CalcDirLight(dirLight, norm, viewDir);
  
     //spot light
-    result += CalcSpotLight(spotLight, norm, FragPos, viewDir, shadow);    
+    result += CalcSpotLight(spotLight, norm, FragPos, viewDir);    
     
     FragColor = vec4(result, 1.0);
    
 }
 
 // calculates the color when using a directional light.
-vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir, float shadow)
+vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir)
 {
     vec3 lightDir = normalize(-light.direction);
     // diffuse shading
@@ -87,12 +65,12 @@ vec3 CalcDirLight(DirLight light, vec3 normal, vec3 viewDir, float shadow)
 
     // combine results
     vec3 ambient = light.ambient * vec3(texture(texture_diffuse1, TexCoords));
-    vec3 diffuse = light.diffuse * diff * vec3(texture(texture_diffuse1, TexCoords)) * (1.0 - shadow);
+    vec3 diffuse = light.diffuse * diff * vec3(texture(texture_diffuse1, TexCoords));
     return (ambient + diffuse);
 }
 
 // calculates the color when using a spot light.
-vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir, float shadow)
+vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
 {
     vec3 lightDir = normalize(light.position - fragPos);
     // diffuse shading
@@ -108,6 +86,6 @@ vec3 CalcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir, flo
     vec3 ambient = light.ambient * vec3(texture(texture_diffuse1, TexCoords));
     vec3 diffuse = light.diffuse * diff * vec3(texture(texture_diffuse1, TexCoords));
     ambient *= attenuation * intensity;
-    diffuse *= attenuation * intensity * (1-shadow);
+    diffuse *= attenuation * intensity;
     return (ambient + diffuse);
 }
