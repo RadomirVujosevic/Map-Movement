@@ -22,6 +22,7 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height);
 void mouse_callback(GLFWwindow *window, double xpos, double ypos);
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window, Player &p, std::vector<Marker>);
+unsigned int loadTexture(const char *path);
 
 unsigned int loadCubemap(std::vector<std::string> faces);
 
@@ -46,14 +47,19 @@ bool firstMouse = true;
 // rotate,translate and scale a model
 glm::mat4 RTS(glm::vec3 translate = glm::vec3(0.0f, 0.0f, 0.0f),
               glm::vec3 scale = glm::vec3(1.0f, 1.0f, 1.0f),
-              float angle = 0.0f);
+              float angle = 0.0f,
+              glm::vec3 rotation = glm::vec3(1.0f, 0.0f, 0.0f));
 
 void drawObject(Model &objectModel, glm::mat4 model, Shader &shader);
 void drawPlane(Shader &planeShader, glm::vec3 lightPosition, Model &planeModel);
 void setModelShader(Shader &modelShader, glm::vec3 position);
-void drawSkybox(Shader &skyboxShader, int skyboxVAO, unsigned cubemapTexture);
+void drawSkybox(Shader &skyboxShader, unsigned int skyboxVAO, unsigned cubemapTexture);
+void initSkybox(Shader &skyboxShader, unsigned int *skyboxVAO, unsigned int *cubemapTexture);
+void drawArrows(Shader &skyboxShader, int skyboxVAO, unsigned cubemapTexture, glm::mat4 model);
+void initArrows(Shader &arrowShader, unsigned int *arrowVAO, unsigned int *arrowTexture);
 
-int main() {
+int main()
+{
     srand(glfwGetTime());
     // Load GLFW and Create a Window
     glfwInit();
@@ -67,7 +73,8 @@ int main() {
 
     // Check for Valid Context
 
-    if (mWindow == nullptr) {
+    if (mWindow == nullptr)
+    {
         fprintf(stderr, "Failed to Create OpenGL Context");
         return EXIT_FAILURE;
     }
@@ -84,7 +91,6 @@ int main() {
     glfwMakeContextCurrent(mWindow);
     gladLoadGL();
 
-
     // tell stb_image.h to flip loaded texture's on the y-axis (before loading
     // model).
     // stbi_set_flip_vertically_on_load(true);
@@ -93,10 +99,7 @@ int main() {
     // -----------------------------
 
     glEnable(GL_DEPTH_TEST);
-
     glEnable(GL_BLEND);
-
-    
 
     // build and compile shaders
     // -------------------------
@@ -109,6 +112,8 @@ int main() {
     Shader planeShader("resources/shaders/planeShader.vs",
                        "resources/shaders/planeShader.fs");
 
+    Shader arrowShader("resources/shaders/arrowShader.vs",
+                       "resources/shaders/arrowShader.fs");
 
     // configure depth map FBO
     // -----------------------
@@ -135,49 +140,6 @@ int main() {
 
     glm::vec3 lightPos(0.0f, 0.0f, 0.0f);
 
-    float skyboxVertices[] = {
-        // positions
-        -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f,
-        1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f,
-
-        -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f,
-        -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,
-
-        1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,  1.0f,
-        1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f, -1.0f,
-
-        -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,  1.0f,  1.0f,
-        1.0f,  1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,
-
-        -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,
-        1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f,
-
-        -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f,
-        1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f};
-
-    // skybox VAO
-    unsigned int skyboxVAO, skyboxVBO;
-    glGenVertexArrays(1, &skyboxVAO);
-    glGenBuffers(1, &skyboxVBO);
-    glBindVertexArray(skyboxVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices,
-                 GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float),
-                          (void *)0);
-
-    std::vector<std::string> faces = {"resources/Skybox/right.jpg",
-                                      "resources/Skybox/left.jpg",
-                                      "resources/Skybox/top.jpg",
-                                      "resources/Skybox/bottom.jpg",
-                                      "resources/Skybox/front.jpg",
-                                      "resources/Skybox/back.jpg"};
-
-    unsigned int cubemapTexture = loadCubemap(faces);
-    skyboxShader.use();
-    skyboxShader.setInt("skybox", 0);
-
     Model planeModel("resources/objects/plane/plane.obj");
     Model markerModel("resources/objects/marker/marker.obj");
     // location of all the markers
@@ -185,48 +147,63 @@ int main() {
     std::ifstream markerFile("resources/markerLocations.txt");
     float a, b;
     int idx = 0;
-    while (markerFile >> a >> b) {
+    while (markerFile >> a >> b)
+    {
         Marker m(idx++, a, b);
         markers.push_back(m);
     }
     markerFile.close();
     markerFile.open("resources/markerConnections.txt");
-    while (markerFile >> a >> b) {
+    while (markerFile >> a >> b)
+    {
         markers[a].addNeighbour(markers[b]);
         markers[b].addNeighbour(markers[a]);
     }
     markerFile.close();
 
+    arrowShader.use();
+    arrowShader.setInt("texture1", 0);
 
     Player player(markers[0], glm::vec3(0.02f));
 
+    unsigned int skyboxVAO, cubemapTexture;
+    initSkybox(skyboxShader, &skyboxVAO, &cubemapTexture);
+
+    // postavljanje buffera za strelice
+    unsigned int arrowVAO, arrowTexture;
+    initArrows(arrowShader, &arrowVAO, &arrowTexture);
+
     // Rendering Loop
-    while (glfwWindowShouldClose(mWindow) == false) {
+    while (glfwWindowShouldClose(mWindow) == false)
+    {
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
-        lightPos = player.position + glm::vec3(4.0 *sin(glfwGetTime()), 4.0f, 4.0 * cos(glfwGetTime()));
+        lightPos = player.position + glm::vec3(4.0 * sin(glfwGetTime()), 4.0f, 4.0 * cos(glfwGetTime()));
 
         processInput(mWindow, player, markers);
-
+        player.processMovement();
 
         // Background Fill Color
         glClearColor(0.25f, 0.25f, 0.25f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        
 
-        drawPlane(planeShader, player.position, planeModel);
         setModelShader(modelShader, lightPos);
-
-        for (auto &it : markers) {
-            drawObject(markerModel, RTS(it.position, glm::vec3(0.2f), 3.1415),
+        for (auto &it : markers)
+        {
+            drawObject(markerModel, RTS(it.position, glm::vec3(0.2f), glm::radians(180.0f)),
                        modelShader);
         }
         player.draw(modelShader);
-        player.processMovement();
 
+        glm::mat4 arrowModel = RTS(player.position + glm::vec3(0.0f, 0.0f, 0.7f), glm::vec3(0.3f), glm::radians(90.0f));
+        drawArrows(arrowShader, arrowVAO, arrowTexture, arrowModel);
+        arrowModel = RTS(player.position + glm::vec3(0.5f, 0.0f, 0.5f), glm::vec3(0.3f), glm::radians(90.0f));
+        arrowModel = glm::rotate(arrowModel, glm::radians(45.0f), glm::vec3(0.0f, 0.0f, -1.0f));
+        drawArrows(arrowShader, arrowVAO, arrowTexture, arrowModel);
         drawSkybox(skyboxShader, skyboxVAO, cubemapTexture);
+        drawPlane(planeShader, player.position, planeModel);
 
         // Flip Buffers and Draw
         glfwSwapBuffers(mWindow);
@@ -236,26 +213,29 @@ int main() {
     return EXIT_SUCCESS;
 }
 
-void renderScene(){
-    
+void renderScene()
+{
 }
 
-void drawObject(Model &objectModel, glm::mat4 model, Shader &shader) {
+void drawObject(Model &objectModel, glm::mat4 model, Shader &shader)
+{
     shader.use();
     shader.setMat4("model", model);
     objectModel.Draw(shader);
 }
 
-glm::mat4 RTS(glm::vec3 translate, glm::vec3 scale, float angle) {
+glm::mat4 RTS(glm::vec3 translate, glm::vec3 scale, float angle, glm::vec3 rotation)
+{
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::translate(model, translate);
     model = glm::scale(model, scale);
-    model = glm::rotate(model, angle, glm::vec3(1.0f, 0.0f, 1.0f));
+    model = glm::rotate(model, angle, rotation);
     return model;
 }
 
 void processInput(GLFWwindow *window, Player &player,
-                  std::vector<Marker> markers) {
+                  std::vector<Marker> markers)
+{
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
@@ -280,7 +260,8 @@ void processInput(GLFWwindow *window, Player &player,
 // glfw: whenever the window size changed (by OS or user resize) this
 // callback function executes
 // ---------------------------------------------------------------------------------------------
-void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
+void framebuffer_size_callback(GLFWwindow *window, int width, int height)
+{
     // make sure the viewport matches the new window dimensions; note that
     // width and height will be significantly larger than specified on
     // retina displays.
@@ -289,8 +270,10 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
 
 // glfw: whenever the mouse moves, this callback is called
 // -------------------------------------------------------
-void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
-    if (firstMouse) {
+void mouse_callback(GLFWwindow *window, double xpos, double ypos)
+{
+    if (firstMouse)
+    {
         lastX = xpos;
         lastY = ypos;
         firstMouse = false;
@@ -298,7 +281,7 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
 
     float xoffset = xpos - lastX;
     float yoffset =
-        lastY - ypos;  // reversed since y-coordinates go from bottom to top
+        lastY - ypos; // reversed since y-coordinates go from bottom to top
 
     lastX = xpos;
     lastY = ypos;
@@ -308,24 +291,30 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
 
 // glfw: whenever the mouse scroll wheel scrolls, this callback is called
 // ----------------------------------------------------------------------
-void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
+void scroll_callback(GLFWwindow *window, double xoffset, double yoffset)
+{
     camera.ProcessMouseScroll(yoffset);
 }
 
-unsigned int loadCubemap(std::vector<std::string> faces) {
+unsigned int loadCubemap(std::vector<std::string> faces)
+{
     unsigned int textureID;
     glGenTextures(1, &textureID);
     glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
 
     int width, height, nrChannels;
-    for (unsigned int i = 0; i < faces.size(); i++) {
+    for (unsigned int i = 0; i < faces.size(); i++)
+    {
         unsigned char *data =
             stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
-        if (data) {
+        if (data)
+        {
             glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width,
                          height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
             stbi_image_free(data);
-        } else {
+        }
+        else
+        {
             std::cout << "Cubemap texture failed to load at path: " << faces[i]
                       << std::endl;
             stbi_image_free(data);
@@ -341,7 +330,8 @@ unsigned int loadCubemap(std::vector<std::string> faces) {
 }
 
 void drawPlane(Shader &planeShader, glm::vec3 lightPosition,
-               Model &planeModel) {
+               Model &planeModel)
+{
     planeShader.use();
 
     planeShader.setVec3("viewPos", camera.Position);
@@ -362,7 +352,7 @@ void drawPlane(Shader &planeShader, glm::vec3 lightPosition,
     planeShader.setFloat("spotLight.cutOff", glm::cos(glm::radians(45.0f)));
     planeShader.setFloat("spotLight.outerCutOff",
                          glm::cos(glm::radians(50.0f)));
-    
+
     glm::mat4 projection =
         glm::perspective(glm::radians(camera.Zoom),
                          (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
@@ -373,7 +363,8 @@ void drawPlane(Shader &planeShader, glm::vec3 lightPosition,
                planeShader);
 }
 
-void setModelShader(Shader &modelShader, glm::vec3 position) {
+void setModelShader(Shader &modelShader, glm::vec3 position)
+{
     modelShader.use();
     modelShader.setVec3("dirLight.direction", -0.2f, -1.0f, -0.3f);
     modelShader.setVec3("dirLight.ambient", 0.05f, 0.05f, 0.05f);
@@ -388,7 +379,6 @@ void setModelShader(Shader &modelShader, glm::vec3 position) {
     modelShader.setFloat("pointLight.constant", 1.0f);
     modelShader.setFloat("pointLight.linear", 0.09);
     modelShader.setFloat("pointLight.quadratic", 0.032);
-    
 
     glm::mat4 projection =
         glm::perspective(glm::radians(camera.Zoom),
@@ -398,14 +388,13 @@ void setModelShader(Shader &modelShader, glm::vec3 position) {
     modelShader.setMat4("view", view);
 }
 
-
-
-void drawSkybox(Shader &skyboxShader, int skyboxVAO, unsigned cubemapTexture) {
-    glDepthFunc(GL_LEQUAL);  // change depth function so depth test passes when
-                             // values are equal to depth buffer's content
+void drawSkybox(Shader &skyboxShader, unsigned int skyboxVAO, unsigned cubemapTexture)
+{
+    glDepthFunc(GL_LEQUAL); // change depth function so depth test passes when
+                            // values are equal to depth buffer's content
     skyboxShader.use();
     glm::mat4 view = glm::mat4(glm::mat3(
-        camera.GetViewMatrix()));  // remove translation from the view matrix
+        camera.GetViewMatrix())); // remove translation from the view matrix
     glm::mat4 projection =
         glm::perspective(glm::radians(camera.Zoom),
                          (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
@@ -418,4 +407,149 @@ void drawSkybox(Shader &skyboxShader, int skyboxVAO, unsigned cubemapTexture) {
     glDrawArrays(GL_TRIANGLES, 0, 36);
     glBindVertexArray(0);
     glDepthFunc(GL_LESS);
+}
+
+void initSkybox(Shader &skyboxShader, unsigned int *skyboxVAO, unsigned int *cubemapTexture)
+{
+    float skyboxVertices[] = {
+        // positions
+        -1.0f, 1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, 1.0f, -1.0f,
+
+        -1.0f, -1.0f, 1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f, -1.0f,
+        -1.0f, 1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, 1.0f,
+
+        1.0f, -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, 1.0f, -1.0f, 1.0f, -1.0f, -1.0f,
+
+        -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, 1.0f, -1.0f, 1.0f, -1.0f, -1.0f, 1.0f,
+
+        -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f, 1.0f, 1.0f,
+        1.0f, 1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f, -1.0f,
+
+        -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f,
+        1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f};
+
+    // skybox VAO
+    unsigned int skyboxVBO;
+    glGenVertexArrays(1, skyboxVAO);
+    glGenBuffers(1, &skyboxVBO);
+    glBindVertexArray(*skyboxVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices,
+                 GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float),
+                          (void *)0);
+
+    std::vector<std::string> faces = {"resources/Skybox/right.jpg",
+                                      "resources/Skybox/left.jpg",
+                                      "resources/Skybox/top.jpg",
+                                      "resources/Skybox/bottom.jpg",
+                                      "resources/Skybox/front.jpg",
+                                      "resources/Skybox/back.jpg"};
+
+    *cubemapTexture = loadCubemap(faces);
+    skyboxShader.use();
+    skyboxShader.setInt("skybox", 0);
+}
+
+void initArrows(Shader &arrowShader,
+                unsigned int *arrowVAO,
+                unsigned int *arrowTexture)
+{
+
+    // Crtanje strelica
+    float arrowVertices[] = {
+        // positions          // texture coords
+        0.5f, 0.5f, 0.0f, 1.0f, 1.0f,   // top right
+        0.5f, -0.5f, 0.0f, 1.0f, 0.0f,  // bottom right
+        -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, // bottom left
+        -0.5f, 0.5f, 0.0f, 0.0f, 1.0f   // top left
+    };
+    unsigned int indices[] = {
+        0, 1, 3, // first triangle
+        1, 2, 3  // second triangle
+    };
+
+    unsigned int arrowVBO, arrowEBO;
+    glGenVertexArrays(1, arrowVAO);
+    glGenBuffers(1, &arrowVBO);
+    glGenBuffers(1, &arrowEBO);
+
+    glBindVertexArray(*arrowVAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, arrowVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(arrowVertices), arrowVertices, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, arrowEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+    // position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
+    glEnableVertexAttribArray(0);
+    // texture coord attribute
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    *arrowTexture = loadTexture("resources/textures/arrow.png");
+
+    arrowShader.use();
+    arrowShader.setInt("texture1", 0);
+}
+
+void drawArrows(Shader &arrowShader, int arrowVAO, unsigned arrowTexture, glm::mat4 model)
+{
+    arrowShader.use();
+    glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+    glm::mat4 view = camera.GetViewMatrix();
+    arrowShader.setMat4("projection", projection);
+    arrowShader.setMat4("view", view);
+
+    arrowShader.setMat4("model", model);
+
+    glBindVertexArray(arrowVAO);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, arrowTexture);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+}
+
+// utility function for loading a 2D texture from file
+// ---------------------------------------------------
+unsigned int loadTexture(char const *path)
+{
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+
+    int width, height, nrComponents;
+    unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
+    if (data)
+    {
+        GLenum format;
+        if (nrComponents == 1)
+            format = GL_RED;
+        else if (nrComponents == 3)
+            format = GL_RGB;
+        else if (nrComponents == 4)
+            format = GL_RGBA;
+
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT); // for this tutorial: use GL_CLAMP_TO_EDGE to prevent semi-transparent borders. Due to interpolation it takes texels from next repeat
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, format == GL_RGBA ? GL_CLAMP_TO_EDGE : GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        stbi_image_free(data);
+    }
+    else
+    {
+        std::cout << "Texture failed to load at path: " << path << std::endl;
+        stbi_image_free(data);
+    }
+
+    return textureID;
 }
