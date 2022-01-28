@@ -11,7 +11,14 @@
 Projekat predstavlja kretanje figure na karti. Pritiskom na strelicu gore ce se figura pomeriti.
 
 Model igraca ima direkciono svetlo i svetlo iz tacke koja se krece u krug oko njega.
+modelShader koristi spekularno svetlo po Blinn-Phong modelu
+
 Mapa ima isto direkciono svetlo i spotlight koji predstavlja vidokrug igraca. 
+
+Za strelice je koristen discard blending. 
+One predstavljaju kuda igrac moze da ide. 
+Nije implementirana stvarna logika za pomeranje strelica, vec stoji na fiksnoj mestu u odnosu na igraca
+
 
 Implementiran Cubemap iz grupe A
 
