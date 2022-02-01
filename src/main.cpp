@@ -100,8 +100,6 @@ int main()
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
 
     // build and compile shaders
     // -------------------------
@@ -182,6 +180,7 @@ int main()
         arrowModel = glm::rotate(arrowModel, glm::radians(45.0f), glm::vec3(0.0f, 0.0f, -1.0f));
         drawArrows(arrowShader, arrowVAO, arrowTexture, arrowModel);
         drawSkybox(skyboxShader, skyboxVAO, cubemapTexture);
+
         drawPlane(planeShader, player.position, planeModel);
 
         // Flip Buffers and Draw
@@ -311,6 +310,10 @@ unsigned int loadCubemap(std::vector<std::string> faces)
 void drawPlane(Shader &planeShader, glm::vec3 lightPosition,
                Model &planeModel)
 {
+
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+
     planeShader.use();
 
     planeShader.setVec3("viewPos", camera.Position);
@@ -340,6 +343,8 @@ void drawPlane(Shader &planeShader, glm::vec3 lightPosition,
     planeShader.setMat4("view", view);
     drawObject(planeModel, RTS(glm::vec3(0.0f, -0.15f, 0.0f), glm::vec3(4.0f)),
                planeShader);
+
+    glDisable(GL_CULL_FACE);
 }
 
 void setModelShader(Shader &modelShader, glm::vec3 position)
