@@ -48,6 +48,7 @@ public:
         glm::vec3 markerScale = scale;
         markerScale *= markerScaleRatio;
         model = glm::scale(model, markerScale);
+        model = glm::rotate(model, (float)glm::radians(180.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         shader.setMat4("model", model);
         markerModel.Draw(shader);
     }
